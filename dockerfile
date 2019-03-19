@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8012
 
-CMD [ "python", "peer_review_bot/telegram_ui.py"]
+CMD [ "python", "main.py"]
