@@ -3,8 +3,8 @@ services:
   bot:
     build: .
     restart: always
-    ports:
-     - "8012:8012"
+    env_file:
+      - .env
   mongo:
     image: mongo
     restart: always

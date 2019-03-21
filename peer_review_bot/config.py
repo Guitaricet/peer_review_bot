@@ -8,7 +8,7 @@ proxy = os.environ.get('PRB_PROXY')
 
 # Data-related
 shelve_name = 'user_states.shelve'
-dbhost = 'localhost'
+dbhost = 'mongo'
 
 # Logic-related:
 n_graders = 2
