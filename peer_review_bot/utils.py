@@ -65,7 +65,11 @@ def format_gradable(gradable):
     workshops = defaultdict(lambda: defaultdict(list))
     for line in gradable:
         w, t = line['workshop_number'], line['task_number']
-        tg_username = '@' + line['tg_username']
+        tg_username = line['tg_username']
+        if tg_username is None:
+            tg_username = '???'
+        else:
+            tg_username = '@' + tg_username
         workshops[w][t].append(tg_username)
 
     res = ''
