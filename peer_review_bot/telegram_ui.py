@@ -34,15 +34,14 @@ if config.use_proxy:
 @bot.message_handler(commands=['start'])
 def register(message):
     bot.send_message(message.chat.id, 'Hi!')
-    user_tgid = message.from_user.id
     # TODO: move db logic to db
     try:
-        TasksDB.get_user_info(User(user_tgid))
+        TasksDB.get_user_info(User.from_telegram(message.from_user))
         bot.send_message(message.chat.id, config.registered_error)
     except RuntimeError:
         # TODO: this is bad idea, use if (?)
         bot.send_message(message.chat.id, config.registration_message)
-        datautils.set_user_state(user_tgid, DialogState('registration'))
+        datautils.set_user_state(message.from_user.id, DialogState('registration'))
         return
     bot.send_message(message.chat.id, config.help_message)
 
@@ -60,7 +59,7 @@ def info(message):
     info = {'state': state}
 
     try:
-        user_info = TasksDB.get_user_info(User(user_tgid))
+        user_info = TasksDB.get_user_info(User.from_telegram(message.from_user))
     except RuntimeError as e:
         logger.error(f'Chat_id: {message.chat.id}, error: {e}')
         logger.error(traceback.format_exc())
@@ -97,7 +96,7 @@ def send_task(message):
         bot.send_message(message.chat.id, 'No specified deadline for this workshop. Ask admin.')
         return
 
-    has_sent_previous = TasksDB.check_task_order(User(message.from_user.id), workshop, task)
+    has_sent_previous = TasksDB.check_task_order(User.from_telegram(message.from_user), workshop, task)
     if not has_sent_previous:
         bot.send_message(message.chat.id, config.order_error)
         return
@@ -119,7 +118,7 @@ def send_task(message):
 def get_gradable(message):
     try:
         gradable = TasksDB.get_gradable(
-            User(message.from_user.id)
+            User.from_telegram(message.from_user)
         )
     except (ValueError, RuntimeError) as e:
         bot.send_message(message.chat.id, e)
@@ -137,7 +136,7 @@ def get_gradable(message):
 def get_graders(message):
     try:
         graders = TasksDB.get_graders(
-            User(message.from_user.id)
+            User.from_telegram(message.from_user)
         )
     except (ValueError, RuntimeError) as e:
         bot.send_message(message.chat.id, e)
@@ -156,7 +155,7 @@ def get_task(message):
     """Get a task to grade
     syntax: /get_task @username 1.4
     """
-    user = User(message.from_user.id)
+    user = User.from_telegram(message.from_user)
 
     # 1. parse the message
     # standard try-except-except for parsing handling
@@ -164,7 +163,7 @@ def get_task(message):
         graded_tg_username, workshop, task = utils.parse_get_task_message(message.text)
     except (ValueError, UnboundLocalError):
         logger.warning(f'Chat_id: {message.chat.id}, user: {message.from_user.username}'
-                        f', #wrong_format: {message.text}')
+                       f', #wrong_format: {message.text}')
         bot.send_message(message.chat.id, config.wrong_format_error)
         bot.send_message(message.chat.id, config.get_task_format_message, parse_mode='markdown')
         return
@@ -192,7 +191,7 @@ def get_task(message):
 @bot.message_handler(commands=['get_scores'])
 def get_scores(message):
     """Get scores of all tasks for given user"""
-    user = User(message.from_user.id)
+    user = User.from_telegram(message.from_user)
     try:
         scores = TasksDB.get_scores(user)
     except Exception as e:
@@ -212,8 +211,10 @@ def get_scores(message):
 @bot.message_handler(commands=['late_days'])
 def get_late_days(message):
     """Return to user number of late days left"""
-    user_info = TasksDB.get_user_info(User(message.from_user.id))
-    n_days = user_info.get('late_days', config.default_late_days) or config.default_late_days
+    user_info = TasksDB.get_user_info(User.from_telegram(message.from_user))
+    n_days = user_info.get('late_days', config.default_late_days)
+    if n_days is None:
+        n_days = config.default_late_days
     bot.send_message(message.chat.id, f'You have *{n_days}* late days left.', parse_mode='markdown')
 
 
@@ -232,7 +233,7 @@ def grade(message):
 
     # TODO: user should have initialization from db(?)
     # lazy init if the param is unavailable
-    user = User(message.from_user.id)
+    user = User.from_telegram(message.from_user)
     graded = User(tg_username=score_dict['tg_username'])
     try:
         TasksDB.add_score(user,
@@ -240,11 +241,14 @@ def grade(message):
                           score_dict['workshop_number'],
                           score_dict['task_number'],
                           score_dict['score'])
+    except (ValueError, RuntimeError) as e:
+        bot.send_message(message.chat.id, repr(e))
+        return
     except Exception as e:
         bot.send_message(message.chat.id, config.just_error)
         logger.error(f'Chat_id: {message.chat.id}, user: {message.from_user.username}'
                      f', error: {e}')
-        # bot.send_message(message.chat.id, repr(e))
+        bot.send_message(config.logto, e)
         return
 
     bot.send_message(message.chat.id, config.success_message)
@@ -291,12 +295,12 @@ def recieve_task(message):
 
     # write to db
     document = Document.from_telegram(message.document)
-    user = User(message.from_user.id)
+    user = User.from_telegram(message.from_user)
     try:
         res = TasksDB.add_task(user, workshop, task, document)
     except RuntimeError as e:
         logger.error(f'Chat_id: {message.chat.id}, user: {message.from_user.username}'
-                        f', #runtime_error: {e}')
+                     f', #runtime_error: {e}')
         bot.send_message(message.chat.id, str(e))
         return
 

@@ -18,18 +18,30 @@ class TasksDB:
     @classmethod
     def get_user_info(cls, user):
         if user.tg_id is not None:
-            res = cls._db.user.find_one({'tg_id': user.tg_id})
+            info = cls._db.user.find_one({'tg_id': user.tg_id})
         elif user.tg_username is not None:
-            res = cls._db.user.find_one({'tg_username': user.tg_username})
+            info = cls._db.user.find_one({'tg_username': user.tg_username})
         elif user.username is not None:
-            res = cls._db.user.find_one({'username': user.username})
+            info = cls._db.user.find_one({'username': user.username})
         else:
             raise ValueError('User without id or tg_id')
 
-        if res is None:
+        if info is None:
             raise RuntimeError(f'No such user in db. User: {user}')
+        
+        cls.maybe_update_user_info(user, info)
 
-        return res
+        return info
+
+    @classmethod
+    def maybe_update_user_info(cls, user, info):
+        if info['tg_username'] == user.tg_username:
+            return
+
+        cls._db.user.update_one(
+            {'tg_id': user.tg_id},
+            {'$set': {'tg_username': user.tg_username}}
+        )
 
     @classmethod
     def use_late_days(cls, user, n_late):
