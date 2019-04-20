@@ -1,0 +1,12 @@
+version: '3.1'
+services:
+  bot:
+    build: .
+    restart: always
+    ports:
+     - "8012:8012"
+  mongo:
+    image: mongo
+    restart: always
+    volumes:
+      - ~/data:/data/db
