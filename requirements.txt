@@ -1,3 +1,3 @@
 pytelegrambotapi
 pymongo
-requests[socks]==2.10.0
+requests[socks]==2.20.0
